@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Hub Pro - Ads Integrated</title>
+    <style>
+        :root { --primary: #0095f6; --bg: #fafafa; --white: #ffffff; --red: #ed4956; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 60px; }
+        
+        /* HEADER */
+        .header { 
+            background: var(--white); padding: 15px; border-bottom: 1px solid #dbdbdb;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .logo { font-weight: bold; font-size: 1.4rem; color: #262626; }
+        .btn-post { background: #333; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* ADS SLOT */
+        .banner-ads { 
+            width: 100%; max-width: 500px; margin: 10px auto; 
+            min-height: 50px; background: #eee; border: 1px dashed #bbb;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+
+        /* VIDEO FEED */
+        .video-card { background: var(--white); max-width: 500px; margin: 0 auto 15px; border: 1px solid #dbdbdb; border-radius: 3px; }
+        .post-info { display: flex; justify-content: space-between; align-items: center; padding: 12px; }
+        .video-wrap { background: #000; position: relative; width: 100%; }
+        video { width: 100%; display: block; max-height: 550px; cursor: pointer; }
+
+        /* INTERACTION */
+        .post-actions { display: flex; padding: 10px 15px; gap: 20px; }
+        .action-item { background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px; }
+        .action-item svg { width: 24px; height: 24px; }
+        .liked svg { fill: var(--red); color: var(--red); }
+
+        /* MENU HAPUS */
+        .menu-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #666; }
+        .drop-menu { 
+            display: none; position: absolute; right: 15px; top: 45px; 
+            background: white; border: 1px solid #ddd; box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            border-radius: 5px; z-index: 10; 
+        }
+        .drop-menu button { width: 100%; padding: 10px 20px; border: none; background: none; color: var(--red); cursor: pointer; font-weight: bold; }
+
+        /* MODAL */
+        #modalAdmin { 
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); 
+            z-index: 2000; align-items: center; justify-content: center; 
+        }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; }
+        .modal-content input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">VIDEO HUB</div>
+        <button class="btn-post" onclick="openPostModal()">+ POST</button>
+    </div>
+
+    <div class="banner-ads">
+        <p style="font-size: 10px; color: #999;"><script>
+  atOptions = {
+    'key' : '90fe6b96bcb087940a1b55ba2a059953',
+    'format' : 'iframe',
+    'height' : 250,
+    'width' : 300,
+    'params' : {}
+  };
+</script>
+<script src="https://venisonglum.com/90fe6b96bcb087940a1b55ba2a059953/invoke.js"></script></p>
+    </div>
+
+    <div id="videoFeed">
+        </div>
+
+    <div class="banner-ads">
+        <p style="font-size: 10px; color: #999;"><script>
+  atOptions = {
+    'key' : '47d978d14968832cdada419d649a84e4',
+    'format' : 'iframe',
+    'height' : 60,
+    'width' : 468,
+    'params' : {}
+  };
+</script>
+<script src="https://venisonglum.com/47d978d14968832cdada419d649a84e4/invoke.js"></script></p>
+    </div>
+
+    <div id="modalAdmin">
+        <div class="modal-content">
+            <h3 style="margin-top:0">Posting Video Baru</h3>
+            <input type="text" id="vTitle" placeholder="Judul Video">
+            <input type="text" id="vUrl" placeholder="Link Video Direct (.mp4)">
+            <button onclick="publishPost()" style="width:100%; padding:12px; background:#2ecc71; border:none; color:white; border-radius:8px; font-weight:bold; cursor:pointer;">PUBLIKASIKAN</button>
+            <button onclick="closeModal()" style="width:100%; background:none; border:none; color:gray; margin-top:10px; cursor:pointer;">Batal</button>
+        </div>
+    </div>
+
+    <script>
+        // GANTI DENGAN URL FIREBASE ANDA
+        const DATABASE_URL = "https://play-93d5a-default-rtdb.asia-southeast1.firebasedatabase.app/";
+        const ADMIN_PASS = "Dik123"; // Password untuk Post dan Hapus
+
+        // LOAD DATA
+        async function fetchVideos() {
+            const feed = document.getElementById('videoFeed');
+            try {
+                const response = await fetch(`${DATABASE_URL}/posts.json`);
+                const data = await response.json();
+                feed.innerHTML = '';
+
+                if (data) {
+                    Object.keys(data).reverse().forEach(key => {
+                        const post = data[key];
+                        const card = document.createElement('div');
+                        card.className = 'video-card';
+                        card.innerHTML = `
+                            <div class="post-info">
+                                <strong>${post.title}</strong>
+                                <div style="position:relative">
+                                    <button class="menu-btn" onclick="toggleDrop('${key}')">⋮</button>
+                                    <div id="menu-${key}" class="drop-menu">
+                                        <button onclick="removePost('${key}')">Hapus</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="video-wrap">
+                                <video loop playsinline onclick="this.paused ? this.play() : this.pause()">
+                                    <source src="${post.url}" type="video/mp4">
+                                </video>
+                            </div>
+                            <div class="post-actions">
+                                <button class="action-item ${post.liked ? 'liked' : ''}" onclick="likePost('${key}', this)">
+                                    <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                                    <span>${post.likes || 0}</span>
+                                </button>
+                                <button class="action-item" onclick="sharePost('${post.title}', '${post.url}')">
+                                    <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+                                </button>
+                            </div>
+                        `;
+                        feed.appendChild(card);
+                    });
+                }
+            } catch (err) { console.error("Load failed"); }
+        }
+
+        // FUNGSI ADMIN
+        function toggleDrop(id) {
+            const m = document.getElementById(`menu-${id}`);
+            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+        }
+
+        async function removePost(id) {
+            const pass = prompt("Enter Admin Password to delete:");
+            if (pass === ADMIN_PASS) {
+                await fetch(`${DATABASE_URL}/posts/${id}.json`, { method: 'DELETE' });
+                fetchVideos();
+            } else { alert("Access denied!"); }
+        }
+
+        function openPostModal() {
+            const pass = prompt("Enter Admin Password to post:");
+            if (pass === ADMIN_PASS) document.getElementById('modalAdmin').style.display = 'flex';
+            else alert("Wrong Password!");
+        }
+
+        function closeModal() { document.getElementById('modalAdmin').style.display = 'none'; }
+
+        async function publishPost() {
+            const title = document.getElementById('vTitle').value;
+            const url = document.getElementById('vUrl').value;
+            if (title && url) {
+                await fetch(`${DATABASE_URL}/posts.json`, {
+                    method: 'POST',
+                    body: JSON.stringify({ title, url, likes: 0, time: Date.now() })
+                });
+                closeModal(); fetchVideos();
+            }
+        }
+
+        // LIKE & SHARE
+        async function likePost(id, btn) {
+            const span = btn.querySelector('span');
+            let count = parseInt(span.innerText);
+            btn.classList.toggle('liked');
+            btn.classList.contains('liked') ? count++ : count--;
+            span.innerText = count;
+            await fetch(`${DATABASE_URL}/posts/${id}.json`, { method: 'PATCH', body: JSON.stringify({ likes: count }) });
+        }
+
+        function sharePost(title, url) {
+            if (navigator.share) {
+                navigator.share({ title: title, url: url });
+            } else {
+                alert("Salin link: " + url);
+            }
+        }
+
+        window.onload = fetchVideos;
+    </script>
+
+    <script>
+        // Contoh penempatan: <script type='text/javascript' src='//popunder-code.js'></scr...
+    </script>
+
+</body>
+</html>
